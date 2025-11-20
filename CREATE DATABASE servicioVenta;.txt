@@ -1,0 +1,614 @@
+CREATE DATABASE servicioVenta;
+USE servicioVenta;
+
+CREATE TABLE categorias (
+id INT PRIMARY KEY AUTO_INCREMENT,
+nombre VARCHAR (100) UNIQUE NOT NULL,
+descripcion VARCHAR (200)
+);
+
+CREATE TABLE proveedores (
+id INT PRIMARY KEY AUTO_INCREMENT,
+nombre VARCHAR (100) NOT NULL,
+telefono VARCHAR (100),
+email VARCHAR (200),
+direccion VARCHAR (200),
+ciudad VARCHAR (100)
+);
+
+CREATE TABLE productos (
+id INT PRIMARY KEY AUTO_INCREMENT,
+id_categoria INT NOT NULL,
+id_proveedores INT NOT NULL,
+nombre VARCHAR (100) NOT NULL,
+precio DECIMAL (10,2) NOT NULL,
+estado BOOLEAN DEFAULT TRUE,
+FOREIGN KEY (id_categoria) REFERENCES categorias (id),
+FOREIGN KEY (id_proveedores) REFERENCES proveedores (id)
+);
+
+CREATE TABLE inventario (
+id INT PRIMARY KEY AUTO_INCREMENT,
+id_producto INT NOT NULL UNIQUE,
+stock INT NOT NULL DEFAULT 0,
+actualizado DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+FOREIGN KEY (id_producto) REFERENCES productos(id)
+);
+
+CREATE TABLE clientes (
+id INT PRIMARY KEY AUTO_INCREMENT,
+nombre VARCHAR (100) NOT NULL,
+documento VARCHAR (100) UNIQUE NOT NULL,
+telefono VARCHAR (100),
+email VARCHAR (200),
+direccion VARCHAR (200)
+);
+
+CREATE TABLE sucursales (
+id INT PRIMARY KEY AUTO_INCREMENT,
+nombre VARCHAR (100) NOT NULL,
+direccion VARCHAR (200),
+ciudad VARCHAR (100)
+);
+
+CREATE TABLE empleado (
+id INT PRIMARY KEY AUTO_INCREMENT,
+id_sucursal INT,
+nombres VARCHAR (100) NOT NULL,
+apellidos VARCHAR (100) NOT NULL,
+documento VARCHAR (100) UNIQUE NOT NULL,
+email VARCHAR (200),
+estado BOOLEAN DEFAULT TRUE,
+FOREIGN KEY (id_sucursal) REFERENCES sucursales (id)
+);
+
+CREATE TABLE pedidos (
+id INT PRIMARY KEY AUTO_INCREMENT,
+id_cliente INT,
+id_empleado INT,
+fecha DATETIME DEFAULT CURRENT_TIMESTAMP,
+estado ENUM ('PENDIENTE','PAGADO','ANULADO') DEFAULT 'PENDIENTE',
+observaciones VARCHAR (200),
+FOREIGN KEY (id_cliente) REFERENCES clientes (id),
+FOREIGN KEY (id_empleado) REFERENCES empleado (id)
+);
+
+CREATE TABLE detalles_pedido (
+id_pedido INT,
+id_producto INT,
+cantidad INT NOT NULL,
+precio_unitario DECIMAL (10,2) NOT NULL,
+descuento DECIMAL (10,2) NOT NULL DEFAULT 0.00,
+PRIMARY KEY (id_pedido, id_producto),
+FOREIGN KEY (id_pedido) REFERENCES pedidos (id),
+FOREIGN KEY (id_producto) REFERENCES productos (id)
+);
+
+CREATE TABLE facturas ( 
+id INT PRIMARY KEY AUTO_INCREMENT,
+id_pedido INT,
+fecha_emision DATETIME DEFAULT CURRENT_TIMESTAMP,
+subtotal DECIMAL (10,2) NOT NULL,
+total DECIMAL (10,2) NOT NULL,
+FOREIGN KEY (id_pedido) REFERENCES pedidos (id)
+);
+
+-- Entidades de seguridad
+-- 1. Crear usuarios
+CREATE TABLE usuarios (
+  id INT PRIMARY KEY AUTO_INCREMENT,
+  id_empleado INT NULL,
+  username VARCHAR(100) UNIQUE NOT NULL,
+  password VARCHAR(100) NOT NULL,  -- Contraseña en texto plano
+  estado BOOLEAN DEFAULT TRUE,
+  creado DATETIME DEFAULT CURRENT_TIMESTAMP,
+  FOREIGN KEY (id_empleado) REFERENCES empleado(id)
+);
+
+
+-- 2. Roles
+CREATE TABLE roles (
+  id INT PRIMARY KEY AUTO_INCREMENT,
+  nombre VARCHAR(100) UNIQUE NOT NULL,
+  descripcion VARCHAR(200)
+);
+
+
+-- 3. Permisos
+CREATE TABLE permisos (
+  id INT PRIMARY KEY AUTO_INCREMENT,
+  nombre VARCHAR(100) UNIQUE NOT NULL,
+  descripcion VARCHAR(200)
+);
+
+-- 4. Usuarios-Roles (N:M)
+CREATE TABLE usuarios_roles (
+  id_usuario INT NOT NULL,
+  id_rol INT NOT NULL,
+  PRIMARY KEY (id_usuario, id_rol),
+  FOREIGN KEY (id_usuario) REFERENCES usuarios(id),
+  FOREIGN KEY (id_rol) REFERENCES roles(id)
+);
+
+-- 5. Roles-Permisos (N:M)
+CREATE TABLE roles_permisos (
+  id_rol INT NOT NULL,
+  id_permiso INT NOT NULL,
+  PRIMARY KEY (id_rol, id_permiso),
+  FOREIGN KEY (id_rol) REFERENCES roles(id),
+  FOREIGN KEY (id_permiso) REFERENCES permisos(id)
+);
+
+-- 6. Sesiones
+CREATE TABLE sesiones (
+  id INT PRIMARY KEY AUTO_INCREMENT,
+  id_usuario INT NOT NULL,
+  estado ENUM('ACTIVA','CERRADA','EXPIRADA') DEFAULT 'ACTIVA',
+  creado DATETIME DEFAULT CURRENT_TIMESTAMP,
+  expira DATETIME,
+  FOREIGN KEY (id_usuario) REFERENCES usuarios(id)
+);
+
+
+-- 7. Auditoría de eventos
+CREATE TABLE auditoria_eventos (
+  id INT PRIMARY KEY AUTO_INCREMENT,
+  id_usuario INT NULL,
+  accion VARCHAR(100) NOT NULL,
+  detalle VARCHAR(200),
+  ip VARCHAR(45),
+  fecha DATETIME DEFAULT CURRENT_TIMESTAMP,
+  FOREIGN KEY (id_usuario) REFERENCES usuarios(id)
+);
+
+-- 8. Intentos de login / bloqueo
+CREATE TABLE intentos_login (
+  id INT PRIMARY KEY AUTO_INCREMENT,
+  id_usuario INT NOT NULL,
+  intentos INT NOT NULL DEFAULT 0,
+  ultimo_intento DATETIME,
+  bloqueado BOOLEAN DEFAULT FALSE,
+  FOREIGN KEY (id_usuario) REFERENCES usuarios(id)
+);
+
+INSERT INTO categorias (nombre, descripcion) VALUES
+('Bebidas', 'Bebidas frías y calientes'),
+('Snacks', 'Pasabocas y empaquetados'),
+('Lácteos', 'Productos derivados de leche'),
+('Carnes', 'Productos cárnicos'),
+('Aseo', 'Productos de aseo personal'),
+('Licores', 'Bebidas alcohólicas'),
+('Panadería', 'Pan y productos de harina'),
+('Tecnología', 'Productos electrónicos'),
+('Hogar', 'Artículos para el hogar'),
+('Verduras', 'Vegetales frescos'),
+('Frutas', 'Frutas variadas'),
+('Dulces', 'Golosinas'),
+('Ropa', 'Prendas de vestir'),
+('Calzado', 'Zapatos'),
+('Medicamentos', 'Productos farmacéuticos'),
+('Accesorios', 'Variados'),
+('Herramientas', 'De uso manual'),
+('Juguetería', 'Juguetes'),
+('Papelería', 'Útiles escolares'),
+('Mascotas', 'Productos para animales');
+
+
+INSERT INTO proveedores (nombre, telefono, email, direccion, ciudad) VALUES
+('Proveedor Andes', '12345', 'andes@gmail.com', 'Calle 1', 'Neiva'),
+('Distribuciones Lara', '54321', 'lara@gmail.com', 'Calle 2', 'Bogotá'),
+('Comercial Gómez', '11111', 'gomez@gmail.com', 'Carrera 3', 'Cali'),
+('Suministros Rivera', '22222', 'rivera@gmail.com', 'Diagonal 4', 'Medellín'),
+('La Bodega', '33333', 'bodega@gmail.com', 'Avenida 5', 'Neiva'),
+('Soluciones Huila', '44444', 'huila@gmail.com', 'Calle 6', 'Pitalito'),
+('Central Market', '55555', 'market@gmail.com', 'Carrera 7', 'Pereira'),
+('Inventarios Ltda', '12121', 'invent@gmail.com', 'Calle 8', 'Ibagué'),
+('SuperProveedor', '45454', 'super@gmail.com', 'Transv 9', 'Cartagena'),
+('MaxiDistribución', '78787', 'maxi@gmail.com', 'Calle 10', 'Neiva'),
+('Global Import', '90909', 'global@gmail.com', 'Calle 11', 'Bogotá'),
+('Huila Fresh', '19191', 'fresh@gmail.com', 'Calle 12', 'Garzón'),
+('Tienda Mayor', '20202', 'mayor@gmail.com', 'Calle 13', 'Neiva'),
+('Distribuciones Ruiz', '30303', 'ruiz@gmail.com', 'Carrera 14', 'Tunja'),
+('Comercial Oriente', '40404', 'oriente@gmail.com', 'Calle 15', 'Villavicencio'),
+('Proveedor Altico', '50505', 'altico@gmail.com', 'Calle 16', 'Neiva'),
+('Logística Total', '60606', 'logistica@gmail.com', 'Carrera 17', 'Cali'),
+('Importadora Silva', '70707', 'silva@gmail.com', 'Calle 18', 'Popayán'),
+('Suministros Acevedo', '80808', 'acevedo@gmail.com', 'Calle 19', 'Neiva'),
+('Grandes Compras', '90910', 'compras@gmail.com', 'Calle 20', 'Bogotá');
+
+
+INSERT INTO productos (id_categoria, id_proveedores, nombre, precio) VALUES
+(1,1,'Gaseosa Cola',3500),
+(2,2,'Papas Fritas',2500),
+(3,3,'Leche Entera',3200),
+(4,4,'Carne Res',15000),
+(5,5,'Shampoo Herbal',9000),
+(6,6,'Ron Viejo',32000),
+(7,7,'Pan Blandito',500),
+(8,8,'Mouse USB',18000),
+(9,9,'Plato Redondo',4500),
+(10,10,'Tomate Chonto',2000),
+(11,11,'Banano Criollo',1500),
+(12,12,'Chocolatina',1200),
+(13,13,'Camiseta S',20000),
+(14,14,'Zapatos Negros',85000),
+(15,15,'Acetaminofén',1200),
+(16,16,'Collar Perlas',6000),
+(17,17,'Martillo Acero',18000),
+(18,18,'Carro Juguete',15000),
+(19,19,'Cuaderno Raya',2500),
+(20,20,'Concentrado Perro',23000);
+
+
+INSERT INTO inventario (id_producto, stock) VALUES
+(1,10),(2,15),(3,20),(4,12),(5,18),
+(6,8),(7,30),(8,5),(9,11),(10,25),
+(11,14),(12,19),(13,7),(14,6),(15,40),
+(16,13),(17,9),(18,10),(19,22),(20,16);
+
+
+INSERT INTO clientes (nombre, documento, telefono, email, direccion) VALUES
+('Carlos Pérez','1001','12345','carlos@gmail.com','Calle 1'),
+('Ana Gómez','1002','54321','ana@gmail.com','Calle 2'),
+('Luis Torres','1003','11111','luis@gmail.com','Calle 3'),
+('María Ruiz','1004','22222','maria@gmail.com','Calle 4'),
+('Jorge Silva','1005','33333','jorge@gmail.com','Calle 5'),
+('Laura Díaz','1006','44444','laura@gmail.com','Calle 6'),
+('Pedro López','1007','55555','pedro@gmail.com','Calle 7'),
+('Andrea Mora','1008','12121','andrea@gmail.com','Calle 8'),
+('Felipe Rojas','1009','45454','felipe@gmail.com','Calle 9'),
+('Diana Reyes','1010','78787','diana@gmail.com','Calle 10'),
+('Santiago Cruz','1011','90909','santiago@gmail.com','Calle 11'),
+('Paola Nieto','1012','19191','paola@gmail.com','Calle 12'),
+('Camilo Andrade','1013','20202','camilo@gmail.com','Calle 13'),
+('Natalia Correa','1014','30303','natalia@gmail.com','Calle 14'),
+('Julián Rico','1015','40404','julian@gmail.com','Calle 15'),
+('Daniela Vargas','1016','50505','daniela@gmail.com','Calle 16'),
+('Samuel Ortiz','1017','60606','samuel@gmail.com','Calle 17'),
+('Valentina Soto','1018','70707','valentina@gmail.com','Calle 18'),
+('Esteban Luna','1019','80808','esteban@gmail.com','Calle 19'),
+('Mónica Prada','1020','90910','monica@gmail.com','Calle 20');
+
+
+INSERT INTO sucursales (nombre, direccion, ciudad) VALUES
+('Sucursal Centro','Calle 1','Neiva'),
+('Sucursal Norte','Calle 2','Neiva'),
+('Sucursal Sur','Calle 3','Neiva'),
+('Sucursal Oriente','Calle 4','Bogotá'),
+('Sucursal Occidente','Calle 5','Bogotá'),
+('Sucursal Altico','Calle 6','Neiva'),
+('Sucursal Cali 1','Calle 7','Cali'),
+('Sucursal Cali 2','Calle 8','Cali'),
+('Sucursal Medellín 1','Calle 9','Medellín'),
+('Sucursal Medellín 2','Calle 10','Medellín'),
+('Sucursal Pitalito','Calle 11','Pitalito'),
+('Sucursal Garzón','Calle 12','Garzón'),
+('Sucursal Ibagué','Calle 13','Ibagué'),
+('Sucursal Pasto','Calle 14','Pasto'),
+('Sucursal Tunja','Calle 15','Tunja'),
+('Sucursal Cartagena','Calle 16','Cartagena'),
+('Sucursal Villavicencio','Calle 17','Villavicencio'),
+('Sucursal Yopal','Calle 18','Yopal'),
+('Sucursal Bucaramanga','Calle 19','Bucaramanga'),
+('Sucursal Popayán','Calle 20','Popayán');
+
+
+
+INSERT INTO empleado (id_sucursal, nombres, apellidos, documento, email) VALUES
+(1,'Juan','Pérez','2001','juan@gmail.com'),
+(2,'Andrés','Gómez','2002','andres@gmail.com'),
+(3,'Camila','Rojas','2003','camila@gmail.com'),
+(4,'Mateo','Ruiz','2004','mateo@gmail.com'),
+(5,'Valeria','Soto','2005','valeria@gmail.com'),
+(6,'Daniel','Torres','2006','daniel@gmail.com'),
+(7,'Sara','Mora','2007','sara@gmail.com'),
+(8,'Miguel','Cruz','2008','miguel@gmail.com'),
+(9,'Paula','Reyes','2009','paula@gmail.com'),
+(10,'Sebastián','Llanos','2010','sebastian@gmail.com'),
+(11,'Angélica','Correa','2011','angelica@gmail.com'),
+(12,'Oscar','Nieto','2012','oscar@gmail.com'),
+(13,'Kevin','Rico','2013','kevin@gmail.com'),
+(14,'Mariana','Díaz','2014','mariana@gmail.com'),
+(15,'Cristian','Ortiz','2015','cristian@gmail.com'),
+(16,'Isabela','Vargas','2016','isabela@gmail.com'),
+(17,'Hernán','Silva','2017','hernan@gmail.com'),
+(18,'Javier','Ríos','2018','javier@gmail.com'),
+(19,'Tatiana','López','2019','tatiana@gmail.com'),
+(20,'Helena','Pardo','2020','helena@gmail.com');
+
+
+INSERT INTO pedidos (id_cliente, id_empleado, estado, observaciones) VALUES
+(1,1,'PENDIENTE',''),
+(2,2,'PAGADO',''),
+(3,3,'PENDIENTE',''),
+(4,4,'ANULADO',''),
+(5,5,'PENDIENTE',''),
+(6,6,'PENDIENTE',''),
+(7,7,'PAGADO',''),
+(8,8,'ANULADO',''),
+(9,9,'PENDIENTE',''),
+(10,10,'PAGADO',''),
+(11,11,'PENDIENTE',''),
+(12,12,'PENDIENTE',''),
+(13,13,'PAGADO',''),
+(14,14,'ANULADO',''),
+(15,15,'PENDIENTE',''),
+(16,16,'PAGADO',''),
+(17,17,'PENDIENTE',''),
+(18,18,'PAGADO',''),
+(19,19,'PENDIENTE',''),
+(20,20,'PENDIENTE','');
+
+
+INSERT INTO detalles_pedido (id_pedido, id_producto, cantidad, precio_unitario, descuento) VALUES
+(1,1,2,3500,0),
+(2,2,3,2500,0),
+(3,3,1,3200,0),
+(4,4,2,15000,0),
+(5,5,1,9000,0),
+(6,6,1,32000,0),
+(7,7,5,500,0),
+(8,8,1,18000,0),
+(9,9,2,4500,0),
+(10,10,3,2000,0),
+(11,11,4,1500,0),
+(12,12,1,1200,0),
+(13,13,2,20000,0),
+(14,14,1,85000,0),
+(15,15,3,1200,0),
+(16,16,1,6000,0),
+(17,17,2,18000,0),
+(18,18,1,15000,0),
+(19,19,4,2500,0),
+(20,20,1,23000,0);
+
+
+INSERT INTO facturas (id_pedido, subtotal, total) VALUES
+(1,7000,7000),(2,7500,7500),(3,3200,3200),(4,30000,30000),
+(5,9000,9000),(6,32000,32000),(7,2500,2500),(8,18000,18000),
+(9,9000,9000),(10,6000,6000),(11,6000,6000),(12,1200,1200),
+(13,40000,40000),(14,85000,85000),(15,3600,3600),(16,6000,6000),
+(17,36000,36000),(18,15000,15000),(19,10000,10000),(20,23000,23000);
+
+
+INSERT INTO usuarios (id_empleado, username, password) VALUES
+(1,'juan1','123'),
+(2,'andres2','123'),
+(3,'camila3','123'),
+(4,'mateo4','123'),
+(5,'valeria5','123'),
+(6,'daniel6','123'),
+(7,'sara7','123'),
+(8,'miguel8','123'),
+(9,'paula9','123'),
+(10,'sebastian10','123'),
+(11,'angelica11','123'),
+(12,'oscar12','123'),
+(13,'kevin13','123'),
+(14,'mariana14','123'),
+(15,'cristian15','123'),
+(16,'isabela16','123'),
+(17,'hernan17','123'),
+(18,'javier18','123'),
+(19,'tatiana19','123'),
+(20,'helena20','123');
+
+
+INSERT INTO roles (nombre, descripcion) VALUES
+('Admin','Control total'),
+('Vendedor','Ventas'),
+('Cajero','Cobros'),
+('Inventario','Control stock'),
+('Supervisor','Revisión general'),
+('Gerente','Administración'),
+('Contador','Finanzas'),
+('Mensajero','Domicilios'),
+('Soporte','Soporte técnico'),
+('Auxiliar','Apoyo'),
+('Invitado','Acceso limitado'),
+('RH','Recursos humanos'),
+('Marketing','Publicidad'),
+('Logistica','Transporte'),
+('Compras','Adquisiciones'),
+('Proveedor','Gestión proveedores'),
+('Seguridad','Control acceso'),
+('Operador','Operaciones varias'),
+('Administrador Tienda','Control tienda'),
+('Líder','Encargado general');
+
+
+INSERT INTO permisos (nombre, descripcion) VALUES
+('crear','Crear registros'),
+('editar','Editar registros'),
+('eliminar','Eliminar registros'),
+('ver','Ver información'),
+('exportar','Descargar datos'),
+('importar','Subir datos'),
+('facturar','Generar facturas'),
+('descuentos','Aplicar descuentos'),
+('stock','Modificar inventario'),
+('usuarios','Gestionar usuarios'),
+('roles','Gestionar roles'),
+('permisos','Gestionar permisos'),
+('auditoria','Ver auditorías'),
+('backup','Respaldos'),
+('reportes','Ver reportes'),
+('compras','Realizar compras'),
+('ventas','Realizar ventas'),
+('caja','Abrir caja'),
+('contabilidad','Manejo contable'),
+('envios','Enviar productos');
+
+
+INSERT INTO usuarios_roles (id_usuario, id_rol) VALUES
+(1,1),(2,2),(3,3),(4,4),(5,5),
+(6,6),(7,7),(8,8),(9,9),(10,10),
+(11,11),(12,12),(13,13),(14,14),(15,15),
+(16,16),(17,17),(18,18),(19,19),(20,20);
+
+
+INSERT INTO roles_permisos (id_rol, id_permiso) VALUES
+(1,1),(2,2),(3,3),(4,4),(5,5),
+(6,6),(7,7),(8,8),(9,9),(10,10),
+(11,11),(12,12),(13,13),(14,14),(15,15),
+(16,16),(17,17),(18,18),(19,19),(20,20);
+
+
+INSERT INTO sesiones (id_usuario, estado, expira) VALUES
+(1,'ACTIVA',NULL),(2,'CERRADA',NULL),(3,'EXPIRADA',NULL),
+(4,'ACTIVA',NULL),(5,'CERRADA',NULL),(6,'ACTIVA',NULL),
+(7,'ACTIVA',NULL),(8,'EXPIRADA',NULL),(9,'CERRADA',NULL),
+(10,'ACTIVA',NULL),(11,'CERRADA',NULL),(12,'EXPIRADA',NULL),
+(13,'ACTIVA',NULL),(14,'ACTIVA',NULL),(15,'CERRADA',NULL),
+(16,'EXPIRADA',NULL),(17,'ACTIVA',NULL),(18,'CERRADA',NULL),
+(19,'ACTIVA',NULL),(20,'EXPIRADA',NULL);
+
+
+INSERT INTO auditoria_eventos (id_usuario, accion, detalle, ip) VALUES
+(1,'login','Ingreso','1.1.1.1'),
+(2,'logout','Salida','1.1.1.2'),
+(3,'crear','Registro creado','1.1.1.3'),
+(4,'editar','Registro editado','1.1.1.4'),
+(5,'eliminar','Registro eliminado','1.1.1.5'),
+(6,'ver','Vista','1.1.1.6'),
+(7,'crear','Nuevo usuario','1.1.1.7'),
+(8,'editar','Cambio datos','1.1.1.8'),
+(9,'login','Inicio sesión','1.1.1.9'),
+(10,'logout','Salida','1.1.1.10'),
+(11,'crear','Factura','1.1.1.11'),
+(12,'ver','Reporte','1.1.1.12'),
+(13,'editar','Cambio permisos','1.1.1.13'),
+(14,'eliminar','Eliminado','1.1.1.14'),
+(15,'crear','Nuevo rol','1.1.1.15'),
+(16,'ver','Vista datos','1.1.1.16'),
+(17,'login','Inicio sesión','1.1.1.17'),
+(18,'logout','Salida','1.1.1.18'),
+(19,'crear','Nuevo pedido','1.1.1.19'),
+(20,'editar','Actualización','1.1.1.20');
+
+
+INSERT INTO intentos_login (id_usuario, intentos, bloqueado) VALUES
+(1,0,0),(2,1,0),(3,2,0),(4,3,1),(5,0,0),
+(6,1,0),(7,2,0),(8,3,1),(9,0,0),(10,1,0),
+(11,2,0),(12,3,1),(13,0,0),(14,1,0),(15,2,0),
+(16,3,1),(17,0,0),(18,1,0),(19,2,0),(20,3,1);
+
+
+DELIMITER $$
+
+CREATE FUNCTION fn_subtotal_pedido(p_id_pedido INT)
+RETURNS DECIMAL(10,2)
+DETERMINISTIC
+READS SQL DATA
+BEGIN
+    DECLARE subtotal DECIMAL(10,2);
+
+    SELECT IFNULL(SUM(cantidad * precio_unitario), 0)
+    INTO subtotal
+    FROM detalles_pedido
+    WHERE id_pedido = p_id_pedido;
+
+    RETURN subtotal;
+END$$
+
+DELIMITER ;
+
+DELIMITER $$
+
+CREATE FUNCTION fn_total_pedido(p_id_pedido INT)
+RETURNS DECIMAL(10,2)
+DETERMINISTIC
+READS SQL DATA
+BEGIN
+    DECLARE subtotal DECIMAL(10,2);
+    DECLARE total DECIMAL(10,2);
+
+    SET subtotal = fn_subtotal_pedido(p_id_pedido);
+    SET total = subtotal * 1.19; -- IVA del 19%
+
+    RETURN ROUND(total, 2);
+END$$
+
+DELIMITER ;
+
+DELIMITER $$
+
+CREATE TRIGGER trg_actualizar_factura
+AFTER INSERT ON detalles_pedido
+FOR EACH ROW
+BEGIN
+    -- Si ya existe factura, actualizarla
+    IF EXISTS (SELECT 1 FROM facturas WHERE id_pedido = NEW.id_pedido) THEN
+        UPDATE facturas
+        SET subtotal = fn_subtotal_pedido(NEW.id_pedido),
+            total = fn_total_pedido(NEW.id_pedido)
+        WHERE id_pedido = NEW.id_pedido;
+    ELSE
+        -- Si no existe factura, crearla
+        INSERT INTO facturas (id_pedido, subtotal, total)
+        VALUES (NEW.id_pedido, fn_subtotal_pedido(NEW.id_pedido), fn_total_pedido(NEW.id_pedido));
+    END IF;
+END$$
+
+DELIMITER ;
+
+-- Insertar un nuevo detalle en el pedido 1
+INSERT INTO detalles_pedido (id_pedido, id_producto, cantidad, precio_unitario, descuento)
+VALUES (1, 2, 3, 2500, 0);
+
+-- Ver la factura actualizada
+SELECT * FROM facturas WHERE id_pedido = 1;
+
+SELECT p.id, p.nombre AS producto, c.nombre AS categoria, pr.nombre AS proveedor
+FROM productos p
+INNER JOIN categorias c ON p.id_categoria = c.id
+INNER JOIN proveedores pr ON p.id_proveedores = pr.id;
+
+SELECT pe.id AS pedido, cl.nombre AS cliente, CONCAT(em.nombres,  ' ', em.apellidos) AS empleado, pe.estado
+FROM pedidos pe
+INNER JOIN clientes cl ON pe.id_cliente = cl.id
+INNER JOIN empleado em ON pe.id_empleado = em.id;
+
+SELECT dp.id_pedido, p.nombre AS producto, c.nombre AS categoria, dp.cantidad, dp.precio_unitario
+FROM detalles_pedido dp
+INNER JOIN productos p ON dp.id_producto = p.id
+INNER JOIN categorias c ON p.id_categoria = c.id;
+
+SELECT f.id AS factura, f.subtotal, f.total, cl.nombre AS cliente
+FROM facturas f
+INNER JOIN pedidos pe ON f.id_pedido = pe.id
+INNER JOIN clientes cl ON pe.id_cliente = cl.id;
+
+SELECT i.id, p.nombre AS producto, pr.nombre AS proveedor, i.stock
+FROM inventario i
+INNER JOIN productos p ON i.id_producto = p.id
+INNER JOIN proveedores pr ON p.id_proveedores = pr.id;
+
+SELECT em.id, CONCAT(em.nombres,' ',em.apellidos) AS empleado, s.nombre AS sucursal, s.ciudad
+FROM empleado em
+INNER JOIN sucursales s ON em.id_sucursal = s.id;
+
+SELECT u.username, CONCAT(e.nombres,' ',e.apellidos) AS empleado, s.nombre AS sucursal
+FROM usuarios u
+INNER JOIN empleado e ON u.id_empleado = e.id
+INNER JOIN sucursales s ON e.id_sucursal = s.id;
+
+
+SELECT u.username, r.nombre AS rol
+FROM usuarios u
+INNER JOIN usuarios_roles ur ON u.id = ur.id_usuario
+INNER JOIN roles r ON ur.id_rol = r.id;
+
+SELECT r.nombre AS rol, p.nombre AS permiso
+FROM roles r
+INNER JOIN roles_permisos rp ON r.id = rp.id_rol
+INNER JOIN permisos p ON rp.id_permiso = p.id;
+
+SELECT pe.id AS pedido, cl.nombre AS cliente, CONCAT(em.nombres,' ',em.apellidos) AS empleado,
+       pr.nombre AS producto, f.total AS factura_total
+FROM pedidos pe
+INNER JOIN clientes cl ON pe.id_cliente = cl.id
+INNER JOIN empleado em ON pe.id_empleado = em.id
+INNER JOIN detalles_pedido dp ON pe.id = dp.id_pedido
+INNER JOIN productos pr ON dp.id_producto = pr.id
+INNER JOIN facturas f ON pe.id = f.id_pedido;
